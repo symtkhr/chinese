@@ -1,7 +1,7 @@
 // ver.1.2 since 2013/06/04
 
 //////////////////////////////////////// main 
-var conf_q = 25;
+var conf_q = 10;
 var cnt_q = 0;
 var qstat = 0;
 var nolimit = 0;
@@ -12,17 +12,48 @@ var misspool = [];
 var missrec  = [];
 var failpool = [];
 var stars = ["&#x2606;", "&#x2605;", "&#x203B;"];
-
+var scores = [];
 ////////////////// 初期化
 function init_config(num){
-  for(var i=0; i<num; i++){
-    if(qs_list.length==0) break;
-    var ord = parseInt(Math.random() * qs_list.length);
-    qs_list_subset[i] = qs_list[ord];
-    qs_list.splice(ord,1);
-  }
-  qs_list = [];
-  show_all_card();
+    var qslist = [];
+    var loaders = [
+        {
+            file:"qs_list.dat",
+            cb: (dic) => { qslist = dic.split("\n").map(line => line.split("\t")); },
+        },
+        {
+            file: "./wc_sav_dat/" + getRequest() + ".dat",
+            cb: text => {
+                scores = text.split(";").filter(v=>v).map(score => score.split(":"));
+                scores.forEach(d => {
+                    var id = d[0];
+                    if (!id) return;
+                    var score = d[1];
+                    var i = qslist.findIndex(q => q[0] == id);
+                    qslist[i].push(score);
+                });
+            },
+        }];
+
+    var loadnext = () => {
+        if (loaders.length == 0) return alldone();
+        var g = loaders.shift();
+        $.get(g.file)
+            .done(x => { g.cb(x); loadnext(); })
+            .fail(x => { console.log(g.file, "fail"); loadnext(); });
+    };
+
+    var alldone = () => {
+        for(var i = 0; i < num && 0 < qslist.length; i++){
+            var ord = parseInt(Math.random() * qslist.length);
+            qs_list_subset.push(qslist[ord]);
+            qslist.splice(ord, 1);
+        }
+        qslist = [];
+        show_all_card();
+    };
+
+    loadnext();
 }
 ////////////////// カード一覧
 function show_all_card(){
@@ -40,7 +71,7 @@ function show_all_card(){
   res = "";
   if(query_user) res += 'Hi, '+ query_user + "! ";
   res += "Learn how to read the following " + conf_q + " words. ";
-  if(query_user) res += num_score + " of your scores have been saved."
+  if(query_user) res += scores.length + " of your scores have been saved."
   res += "<ul>" + card_all.sort().join("") + "</ul>";
   $("#result").html(res);
 }
@@ -288,28 +319,26 @@ function go_fin(){
       res_txt += stars[missrec[i]-1] + qs_list_subset[i][1]
         + ":" + qs_list_subset[i][2] + "\n";
   }
-  if(missrec.length == 0){
-    if(cnt_q >= conf_q)
-      $("#result").html("Congraturation for perfect clear!");
-    else
-      $("#result").html("(No mistakes)");
-  } else 
+  if(missrec.length)
     $("#result").html("<textarea>" + res_txt + "</textarea>");
+  else if(cnt_q >= conf_q)
+    $("#result").html("Congraturation for perfect clear!");
+  else
+    $("#result").html("(No mistakes)");
 
-  res_txt =  '<form method="post" name="start" action="qs_list.php">';
-  res_txt += '<input type="submit" id="start" name="st_button" value="Save"> into the file as';
-  var query_user = getRequest();
-  if(query_user){
-    res_txt += ': <b>' + query_user + '</b>';
-    res_txt += '<input type="hidden" name="user" value="' + query_user + '">';
-  } else {
-    res_txt += ': <input type="text" name="user" value="">';
-  }
-  for(var i=0; i<4; i++){
-    res_txt += '<input type="hidden" name="miss' + i + '" value="' + misslist[i].join(",") + '">';
-  }
-  res_txt += '</form>';
-  $("#submit_button").html( res_txt );
+    misslist.forEach((qids, i) => {
+        qids.forEach(qid => {
+            var idx = scores.findIndex(score => score[0] == qid);
+            scores[idx][1] = (scores[idx][1] + i.toString()).slice(-8);
+        });
+    });
+    $("#submit_button").html(
+        "<textarea>" + JSON.stringify(misslist) + "</textarea>"
+            + "<textarea>" +
+            JSON.stringify(scores) + "</textarea>"
+    );
+
+    
 }
 
 /////////////// クエリ取得
