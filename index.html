@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta http-equiv="Content-Style-Type" content="text/css" />
+<meta name="viewport" content="width=device-width, initial-scale=0.5">
+<title>ChineseWordcard</title>
+<script src="//ajax.googleapis.com/ajax/libs/jquery/2.2.4/jquery.min.js"></script>
+<script type="text/javascript" src="jZhong_v12.js"></script>
+<script type="text/javascript" src="pn_list.js"></script>
+<style type="text/css">
+  #game {
+  width:560px;
+  }
+  div.vowel {
+   clear: both;
+   float: left;
+   background-color: #dddddd;
+  font-size: 180%;
+}
+div.consonant {
+   float: left;
+   background-color: #ffbbbb;
+  font-size: 180%;
+}
+div.pitch {
+   float: left;
+   background-color: #ffffbb;
+  font-size: 180%;
+}
+#start {
+  font-size: 180%;
+}
+input[type="radio"] {
+  font-size:x-large;
+} 
+.card span {
+  display:block;
+}
+.card .word {
+  font-size:180%;
+  line-height: 30px;
+}
+.cardlist, #cardfull {
+  display:flex;
+  flex-wrap:wrap;
+  list-style: none;
+}
+.card {
+list-style: none;
+text-align:center;
+  cursor:pointer;
+  margin:2px;
+  border-radius: 3px;
+  width: 120px;
+  border: 1px solid green;
+  background-color: #bcb;
+  line-height: 15px;
+  padding:2px;
+}
+.card .mean {
+  border-top: 1px solid #080;
+  margin-top:5px;
+}
+.qid {
+border-radius:50%;
+width: 25px;
+height:25px;
+background-color: #49f;
+display:block;
+line-height:25px;
+text-align:center;
+}
+.qid.r1 {
+  background-color: #fa4;
+}
+.qid.r2 {
+  background-color: #f00;
+}
+  #fin, #dump {
+border: 1px solid #448;
+border-radius: 15px;
+  background-color: #eee;
+  padding: 4px;
+  cursor:pointer;
+  }
+  a.weblio {
+border: 1px solid #cdc;
+border-radius: 15px;
+background-color: #dfd;
+display: inline-block;
+font-size: 10px;
+line-height:10px;
+padding: 4px;
+color:black;
+text-decoration:none;
+}
+a.weblio:hover {
+text-decoration:underline;
+color:blue;
+}
+#quiz {
+  position:relative;
+  display:flex;
+}
+#tf {
+  color:blue; position:absolute; top:25px;font-weight:bold; font-size:300%;
+}
+
+</style>
+
+<body>
+<h2>ChineseWordCard</h2>
+<div id="game">
+  <div style="background:#cccccc; padding:10px;">
+    <div id="inputform">
+      <div id="quiz"></div>
+      <div id="opt"></div>
+      <div id="submit_button" style="clear:both;">
+        <form method="post" name="start" onsubmit="state_machine(); return false;">
+          <input type="button" id="start" name="st_button" value="Start">
+        </form>
+      </div>
+      <div id="result">(Now loading)</div>
+    </div>
+    <hr>
+    <div style="text-align:right" id="back">
+      <span id="dump">Dump</span>
+      <span id="fin">Exit</span>
+    </div>
+  </div>
+</div>
+<div id="fullbox">All cards are shown as follows: <div class="cardlist"></div></div>
+<hr>
+</body>

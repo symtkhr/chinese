@@ -31,8 +31,9 @@ if(isset($_POST["user"])){
   exit;
 }
 
-if(isset($_GET["user"])){
+if(isset($_GET["user"]) || true){
   $filename = $DIR . $_GET["user"] . $EXT;
+  $filename = $DIR . "ankoroto" . $EXT;
   $result = Array();
   if(file_exists($filename)){
     $rs_list = explode(";", file_get_contents($filename));

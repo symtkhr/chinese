@@ -1,52 +1,74 @@
 // ver.1.2 since 2013/06/04
 
 //////////////////////////////////////// main 
-var conf_q = 10;
-var cnt_q = 0;
-var qstat = 0;
-var nolimit = 0;
-var flag_levelup = false;
-var level;
-var qs_list_subset = [];
-var misspool = [];
-var missrec  = [];
-var failpool = [];
-var stars = ["&#x2606;", "&#x2605;", "&#x203B;"];
-var scores = [];
-////////////////// ΩÈ¥¸≤Ω
+let Q = {
+    conf: 10,
+    count: 0,
+    state: 0,
+    qlist: [],
+    misspool: [],
+    missrec : [],
+    failpool: [],
+    scores: [],
+};
+const stars = ["&#x2606;", "&#x2605;", "&#x203B;"];
+
+////////////////// ÂàùÊúüÂåñ
 function init_config(num){
-    var qslist = [];
-    var loaders = [
+    let qslist = [];
+    const loaders = [
         {
             file:"qs_list.dat",
-            cb: (dic) => { qslist = dic.split("\n").map(line => line.split("\t")); },
+            cb: (dic) => { qslist = dic.trim().split("\n").map(line => line.split("\t")); },
         },
         {
-            file: "./wc_sav_dat/" + getRequest() + ".dat",
+            file: "./wc_sav_dat/x.dat", // + getRequest() + ".dat",
             cb: text => {
-                scores = text.split(";").filter(v=>v).map(score => score.split(":"));
-                scores.forEach(d => {
-                    var id = d[0];
+                Q.scores = text.split(";").filter(v=>v).map(score => score.split(":"));
+                Q.scores.forEach(d => {
+                    let id = d[0];
                     if (!id) return;
-                    var score = d[1];
-                    var i = qslist.findIndex(q => q[0] == id);
+                    let score = d[1];
+                    let i = qslist.findIndex(q => q[0] == id);
                     qslist[i].push(score);
                 });
             },
         }];
 
-    var loadnext = () => {
+    const loadnext = () => {
         if (loaders.length == 0) return alldone();
-        var g = loaders.shift();
+        let g = loaders.shift();
         $.get(g.file)
             .done(x => { g.cb(x); loadnext(); })
             .fail(x => { console.log(g.file, "fail"); loadnext(); });
     };
 
-    var alldone = () => {
-        for(var i = 0; i < num && 0 < qslist.length; i++){
-            var ord = parseInt(Math.random() * qslist.length);
-            qs_list_subset.push(qslist[ord]);
+    const alldone = () => {
+        try {
+            Q.scores = JSON.parse(localStorage["score"]);
+        } catch(e) {
+            console.log(e);
+        }
+        Q.scores.forEach(d => {
+            let id = d[0];
+            if (!id) return;
+            let score = d[1];
+            let i = qslist.findIndex(q => q[0] == id);
+            qslist[i].push(score);
+        });
+
+        qslist.sort((a,b)=>{
+            let dlen = a[1].length - b[1].length;
+            if (dlen) return dlen;
+            let dtone = a[2].split(" ").map(v => v.slice(-1)).join("")
+                - b[2].split(" ").map(v => v.slice(-1)).join("");
+            if (dtone) return dtone;
+            return a[2] < b[2] ? -1 : 1;
+        }).map(v => show_card(v, $("#fullbox .cardlist")));
+        
+        for (let i = 0; i < num && 0 < qslist.length; i++) {
+            let ord = parseInt(Math.random() * qslist.length);
+            Q.qlist.push(qslist[ord]);
             qslist.splice(ord, 1);
         }
         qslist = [];
@@ -55,138 +77,137 @@ function init_config(num){
 
     loadnext();
 }
-////////////////// •´°º•…∞ÏÕ˜
+
+const show_card = (qs, $obj) => {
+    $obj.append("<li class=card>"
+                + "<span class=word>" + qs[1] + "</span> "
+                + "<span class=read>" + qs[2] + "</span> "
+                + "<span class=mean>("+ qs[3] + ")"
+                + '<a class="weblio" href="https://cjjc.weblio.jp/content/' + encodeURI(qs[1]) + '" target="_blank">Weblio</a>'
+                + "</span>"
+                + "</li>");
+};
+
+let card_reader = () => {
+    $(".card").click(function() {
+        let ssu = new SpeechSynthesisUtterance();
+        ssu.text = $(this).text().split(" ").shift();
+        ssu.lang = 'zh';
+        ssu.rate = 1;
+        ssu.onerror = function() {
+            $(this).append("[error]");
+        };
+        ssu.onend = function() {
+            //voice_finished();
+        };
+        speechSynthesis.speak(ssu);
+    });
+};
+
+////////////////// „Ç´„Éº„Éâ‰∏ÄË¶ß
 function show_all_card(){
-  var card_all = [];
-  var res = "";
-  var num_exp = 0;
-  var query_user = getRequest();
-  //alert(qs_list_subset);
-  for(var i=0; i<qs_list_subset.length; i++){
-    var qs = qs_list_subset[i];
-    res = "<li>" + qs[1] + " " + qs[2] + " ("+ qs[3] + ")" + "</li>";
-    card_all.push( res );
-    if( query_user && qs[4]=== undefined ) num_exp++;
-  }
-  res = "";
-  if(query_user) res += 'Hi, '+ query_user + "! ";
-  res += "Learn how to read the following " + conf_q + " words. ";
-  if(query_user) res += scores.length + " of your scores have been saved."
-  res += "<ul>" + card_all.sort().join("") + "</ul>";
-  $("#result").html(res);
-}
+    let query_user = getRequest();
+    let res = "Learn how to read the following " + Q.conf + " words. ";
 
-////////////////// æı¬÷¡´∞‹
-function state_machine(){
-  if(qstat==0 || qstat==2){
-    qstat = 1;
-    question();
-  } else if(qstat==1){
-    qstat = 0;
-    show_form();
-  }
-}
-/////////////// Ω–¬Í
-function question(){
-  $("h2").css( "display", "none" );
-  $("#quiz").html("(Now loading)");
-  var num_mis = 0;
-  var qid = cnt_q;
-  var phase = 0;
-  
-  if(cnt_q >= conf_q)
-    phase = 2;
-  else {
-    var mislen = misspool.length;
-    var percent =  mislen * mislen * cnt_q / (conf_q * 40);
-    phase = (percent > Math.random() ) ? 1:0;
-  }
-  switch(phase){
-  case 0:
-    $("#quiz").html("");
-    cnt_q++;
-    break;
-  case 1:
-  case 2:
-    if(phase==2 && misspool.length == 0){ go_fin(); return; }
-    var rsub = parseInt(Math.random()*(misspool.length - 1));
-    qid     = misspool[rsub][0];
-    num_mis = misspool[rsub][1];
-    misspool.splice(rsub,1);
-    $("#quiz").html( stars[num_mis-1] );
-    break;
-  }
-  var qs = qs_list_subset[qid];
-  show_quiz(qid, qs[1], qs[2]);
-  var res = '<span id="answer"></span> (<span id="jp"></span>)';
-  res += '<span id="tf" style="color:blue; font-weight:bold; font-size:120%;">&#xd7;</span>';
-  if(qs[4]) res+="<br>(Past exp: " + show_history(qs[4]) + ")";
-  $("#result").html(res).css( "display", "none" );
-  $("#answer").html(qs[2]);
-  $("#jp").html(qs[3]);
-  misspool.push([qid, num_mis]);
-  $("input[type=radio]:first").focus();
-}
-//////////////// Õ˙ŒÚ…Ωº®
-function show_history(str){
-  var res = "";
-  for(var i =0; i<str.length; i++){
-    var num = str.substr(i,1)-0;
-    res += num>0 ? stars[num-1] : "&#x25EF;";
-  }
-  return res;
-}
-
-/////////////// Ω–¬Í…Ωº®
-function show_quiz(qid, hanji, pinyin){
-  var ans = pinyin.split(" ");
-  var opt = [];
-  $("#opt").html("");
-  $("#quiz").append( (qid+1) + ": " + hanji );
-  var flag_redup = hanji.match(/^(.+)\1$/);
-  
-  for(var j=0; j<ans.length; j++){
-    var opt = make_options(ans[j].replace(/[0-4]$/,""));
-    dump_opt(opt, j);
-    if(flag_redup){
-      dump_opt(opt,true);
-      break;
+    if (Q.scores.length) {
+        //res = 'Hi, '+ query_user + "! " + res;
+        res += Q.scores.length + " of your scores have been saved.";
     }
-  }
+    res += "<div class=cardlist></div>";
+
+    $("#result").html(res);
+    Q.qlist.map(v => v.join(";")).sort().map(v => show_card(v.split(";"), $(".cardlist").eq(0)));
+    card_reader();
 }
 
-//////////////// •Í•π•»¿Ë∆¨ ∏ª˙ºË∆¿
-function find_key(pinyin){
-  var st;
-  if(pinyin.match(/^[awueo]/))
-    st = "#";
-  else if(pinyin.match(/^[csz]h/) )
-    st = pinyin.substr(0,2);
-  else
-    st = pinyin.substr(0,1);
-  if(pn_list[st]) return st;
-  return false;
+////////////////// Áä∂ÊÖãÈÅ∑Áßª
+function state_machine(){
+    if (Q.state == 1) {
+        Q.state = 0;
+        show_answer();
+        return;
+    }
+    Q.state = 1;
+    question();
+}
+/////////////// Âá∫È°å
+function question(){
+    let take = 0;
+    let qid = Q.count;
+    let phase = (() => {
+        if (Q.count >= Q.conf) {
+            return (Q.misspool.length == 0) ? 2 : 1;
+        }
+        let mislen = Q.misspool.length;
+        let percent =  mislen * mislen * Q.count / (Q.conf * 40);
+        console.log(percent);
+        return (percent > Math.random()) ? 1 : 0;
+    })();
+
+    switch(phase){
+    case 0:
+        // new card
+        Q.count++;
+        break;
+    case 1:
+        let rsub = parseInt(Math.random() * (Q.misspool.length - 1));
+        qid  = Q.misspool[rsub][0];
+        take = Q.misspool[rsub][1];
+        Q.misspool.splice(rsub, 1);
+        break;
+    case 2:
+        return go_fin();
+    }
+
+    $("h2, #dump").hide();
+    $("#quiz").html("(Now loading)");
+    $("#result").hide().html("");
+
+    let qs = Q.qlist[qid];
+    show_quiz(qid, qs, take);
+
+    //Â±•Ê≠¥Ë°®Á§∫
+    if (qs[4])
+        $("#result").hide().html(
+            " (History: " + qs[4].split("")
+                .map(c => '<span class="r' + c + ' qid">' + (0 < (c - 0) ? stars[c - 1] : "&#x25ef;") + '</span>')
+                .join("") + ")"
+        ).css("display","flex");
+    Q.misspool.push([qid, take]);
+    $("input[type=radio]:first").focus();
 }
 
-//////////////// ª˜§øª“≤ª§Ú ÷§π
-function get_sim_heads(head){
-  var sim_heads = [head];
-  for(var i=0; i<similarity_nest.length; i++){
-    var sim_st = similarity_nest[i].split("-");
-    var pos = $.inArray(head, sim_st);
-    if(pos<0) continue;
-    if(sim_st[pos-1]) sim_heads.push(sim_st[pos-1]);
-    if(sim_st[pos+1]) sim_heads.push(sim_st[pos+1]);
-  }
-  return sim_heads;
-}
-
-//////////////// ¡™¬ÚªË∫Ó¿Æ
+//////////////// ÈÅ∏ÊäûËÇ¢‰ΩúÊàê
 function make_options(pinyin){
-  var head = find_key(pinyin);
-  if(!head) return;
-  var flag_diff = false; // ( Math.random() * 5 < 1 );
-  var sim_heads = get_sim_heads(head);
+    // „É™„Çπ„ÉàÂÖàÈ†≠ÊñáÂ≠óÂèñÂæó
+    const find_key = (pinyin) => {
+        let st;
+        if(pinyin.match(/^[awueo]/))
+            st = "#";
+        else if(pinyin.match(/^[csz]h/) )
+            st = pinyin.slice(0,2);
+        else
+            st = pinyin.slice(0,1);
+        return (pn_list[st]) ? st : false;
+    };
+
+    // ‰ºº„ÅüÂ≠êÈü≥„ÇíËøî„Åô
+    const get_sim_heads = (head) => {
+        let sim_heads = [head];
+        for(let i=0; i<similarity_nest.length; i++){
+            let sim_st = similarity_nest[i].split("-");
+            let pos = $.inArray(head, sim_st);
+            if(pos<0) continue;
+            if(sim_st[pos-1]) sim_heads.push(sim_st[pos-1]);
+            if(sim_st[pos+1]) sim_heads.push(sim_st[pos+1]);
+        }
+        return sim_heads;
+    };
+
+    let head = find_key(pinyin);
+    if(!head) return;
+    let flag_diff = false; // ( Math.random() * 5 < 1 );
+    let sim_heads = get_sim_heads(head);
 /*
   if(flag_diff){
     var sim_heads = get_sim_heads(head);
@@ -195,167 +216,187 @@ function make_options(pinyin){
     var sim_head = sim_heads[parseInt( Math.random() * sim_heads.length )];
   }
 */
-  while( sim_heads.length < 4 ){
-    tmp = pn_heads[parseInt( Math.random() * pn_heads.length )];
-    if( $.inArray(tmp, sim_heads) < 0 ) sim_heads.push(tmp);
-  }
-  while( sim_heads.length > 4){
-    sim_heads.splice(parseInt(Math.random()*(sim_heads.length-1)+1),1);
-  }
-  //alert(sim_heads);
-  
-  // select one with the same head
-  var opt = [(head==="#"?"#":"")+pinyin];
-  var pn = pn_list[head];
-  var samelen = flag_diff ? 2 : 4;
-  while( opt.length < samelen ){
-    var tmp = head + pn[parseInt( Math.random() * pn.length )];
-    if($.inArray(tmp, opt)<0) opt.push(tmp);
-  }
-/*  
-  if(flag_diff){
-    //select one with the similar head & the same vowel
-    var headlen = (head==="#") ? 0:head.length;
-    pn = pn_list[sim_head];
-    for(var i=0; i<2; i++){
-      var vowel = opt[i].slice(head.length);
-      if($.inArray(vowel, pn) >= 0 ) opt.push(sim_head + vowel);
+    while (sim_heads.length < 4) {
+        let tmp = pn_heads[parseInt( Math.random() * pn_heads.length )];
+        if (sim_heads.indexOf(tmp) < 0) sim_heads.push(tmp);
+    }
+    while (sim_heads.length > 4) {
+        sim_heads.splice(parseInt(Math.random()*(sim_heads.length-1)+1),1);
     }
     
-    //select one with the similar head & the different vowel
-    sim_heads.push(head);
-    while( opt.length < 4 ){
-      sim_head = sim_heads[parseInt( Math.random() * sim_heads.length )];
-      if(!sim_head) continue;
-      pn = pn_list[sim_head];
-      tmp = sim_head + pn[parseInt( Math.random() * pn.length )];
-      if( $.inArray(tmp, opt) < 0 ) opt.push(tmp);
+    // select one with the same head
+    var opt = [(head==="#"?"#":"")+pinyin];
+    var pn = pn_list[head];
+    var samelen = flag_diff ? 2 : 4;
+    while( opt.length < samelen ){
+        var tmp = head + pn[parseInt( Math.random() * pn.length )];
+        if(opt.indexOf(tmp) < 0) opt.push(tmp);
     }
-  }
+    /*  
+        if(flag_diff){
+        //select one with the similar head & the same vowel
+        var headlen = (head==="#") ? 0:head.length;
+        pn = pn_list[sim_head];
+        for(var i=0; i<2; i++){
+        var vowel = opt[i].slice(head.length);
+        if($.inArray(vowel, pn) >= 0 ) opt.push(sim_head + vowel);
+        }
+        
+        //select one with the similar head & the different vowel
+        sim_heads.push(head);
+        while( opt.length < 4 ){
+        sim_head = sim_heads[parseInt( Math.random() * sim_heads.length )];
+        if(!sim_head) continue;
+        pn = pn_list[sim_head];
+        tmp = sim_head + pn[parseInt( Math.random() * pn.length )];
+        if( $.inArray(tmp, opt) < 0 ) opt.push(tmp);
+        }
+        }
 */
-  for(var i=0; i<4; i++)
-    //if(opt[i].substr(0,1)==="#") 
-    opt[i] = opt[i].substr(head.length);
-  
-  return sim_heads.sort().concat(opt.sort());
+    for(var i=0; i<4; i++)
+        //if(opt[i].substr(0,1)==="#") 
+        opt[i] = opt[i].slice(head.length);
+    
+    return sim_heads.sort().concat(opt.sort());
 }
 
-function show_radio(group, opt, nth){  
-  var radio_id = group + "-" + nth;
-  var html_opt = '<label for="' + radio_id + '">';
-  html_opt += '<input type=radio name="' + group +'" value="' + opt + '" id="' + radio_id + '">';
-  html_opt += opt + '</label><br>';
-  return html_opt;
+/////////////// Âá∫È°åË°®Á§∫
+function show_quiz(qid, qs, retest) {
+    let hanji = qs[1];
+    let pinyin = qs[2];
+
+    $("#opt").html("");
+    $("#quiz").html("<span class=qid>" +  (qid + 1) + "</span>");
+    $("#quiz").append('<span id="tf">&#xd7;</span>');
+    $(".qid").addClass("r" + retest);
+    $("#start").val("Submit");
+    show_card(qs, $("#quiz"));
+    card_reader();
+    $(".card .read, .card .mean, #tf").hide();
+
+    // ÈÅ∏ÊäûËÇ¢„ÅÆË°®Á§∫
+    const create_radio = (group, value, nth) => {
+        let id = group + "-" + nth;
+        let $radio = '<label for="' + id + '">';
+        $radio += '<input type=radio name="' + group +'" value="' + value + '" id="' + id + '">';
+        $radio += value + '</label><br />';
+        return $radio;
+    };
+
+    const dump_opt = (opt,qing) => {
+        let $opt = '';
+        $opt += '<div style="display:flex; margin:5px;">';
+        $opt += '<div class="vowel">';
+        for(let i=0; i<4; i++) $opt += create_radio("vowel" + qing, opt[i], i);
+        $opt += ("</div>");
+        $opt += '<div class="consonant">';
+        for(let i=4; i<8; i++) $opt += create_radio("consonant" + qing, opt[i], i);
+        $opt += ("</div>");
+        $opt += '<div class="pitch">';
+        for(let i=1; i<=4; i++) $opt += create_radio("pitch" + qing, i, i);
+        if(qing) $opt += create_radio("pitch" + qing, 0, 0);
+        $opt += "</div>";
+        $opt += "</div>";
+    
+        $("#opt").append($opt);
+        $('input').click(function(){
+            let name = $(this).attr("name");
+            $('input[name=' + name + ']').parent('label').css( { color: "black", fontWeight:"normal" } );
+            $(this).parent('label').css( { color: 'red', fontWeight:"bold" } );
+        });
+    };
+
+    let opts = pinyin.split(" ").map(a => make_options(a.replace(/[0-4]$/,"")));
+    if (hanji.match(/^(.+)\1$/)) opts[1] = opts[0];
+    opts.map((opt, i)=> dump_opt(opt, i));
+};
+
+
+/////////////// Ëß£Á≠îË°®Á§∫
+function show_answer(){
+
+    let ans = "";
+    let ans2 = $('input[type="radio"]:checked')
+        .map(function(){ return $(this).val(); })
+        .get().join("").split("#").join("");
+    let rig = $("#quiz .card .read").text().split(" ").join("");
+    let flag_correct = (ans === rig || ans2 === rig);
+    let miss = Q.misspool.pop();
+    
+    if(flag_correct){
+        $("#tf").html("&#x25EF;").css("color","red");
+    } else {
+        miss[1]++;
+        Q.missrec[miss[0]] = miss[1];
+        (miss[1] < 3 ? Q.misspool : Q.failpool).push(miss);
+    }
+    $("#result").append("[" + (Q.misspool.length + Q.failpool.length) + " remain unsolved]" ).show();
+    $(".read, .mean, #tf").show();
+    $("#start").val("Next");
 }
 
-/////////////// ¡™¬ÚªË…Ωº®
-function dump_opt(opt,qing){
-  var html_opt = '';
-  if(qing) html_opt += '<hr style="clear:both;">';
-  html_opt += '<div class="vowel">';
-  for(var i=0; i<4; i++) html_opt += show_radio("vowel" + qing, opt[i], i);
-  html_opt += ("</div>");
-  html_opt += '<div class="consonant">';
-  for(var i=4; i<8; i++) html_opt += show_radio("consonant" + qing, opt[i], i);
-  html_opt += ("</div>");
-  html_opt += '<div class="pitch">';
-  for(var i=1; i<=4; i++) html_opt += show_radio("pitch" + qing, i, i);
-  if(qing) html_opt += show_radio("pitch" + qing, 0, 0);
-  html_opt += "</div>";
-
-  $("#opt").append(html_opt);
-  $( 'input' ).click( function(){
-    var name = $(this).attr("name");
-    $('input[name=' + name + ']').parent('label').css( { color: "black", fontWeight:"normal" } );
-    $(this).parent('label').css( { color: 'red', fontWeight:"bold" } );
-  } );
-}
-
-/////////////// ≤Ú≈˙…Ωº®
-function show_form(){
-
-  //var ans = $("select.py").children("option:selected").text();
-  var ans = "";
-  //docomo§Œ•’•Î•÷•È•¶•∂¬–∫ˆ
-  var ans2= "";
-  $('input[type="radio"]:checked').each(function(){
-    ans2 += $(this).val();
-  });
-/*
-  $("select.py").each(function(){
-    var i = $(this).get(0).selectedIndex;
-    ans2 += $(this).children("option").get(i).text;
-  });
-*/
-  ans2 = ans2.split("#").join("");
-  var rig = $("#answer").text().split(" ").join("");
-  var flag_correct = (ans === rig || ans2 === rig);
-  var miss = misspool.pop();
-
-  if(flag_correct){
-    $("#tf").html("&#x25EF;").css("color","red");
-  } else {
-    miss[1]++;
-    missrec[miss[0]] = miss[1];
-    (miss[1]<3 ? misspool:failpool).push(miss);
-  }
-  var num_error = misspool.length + failpool.length;
-  $("#result").append("<br>[" + num_error + " remain unsolved]" ).css( "display", "block" );
-  //alert( "misspool: " + misspool + "\nfailpool: " + failpool + "\nmissrec:" + missrec );
-}
-
-/////////////// Ω™Œª
+/////////////// ÁµÇ‰∫Ü
 function go_fin(){
-  if($("#result").css("display")=="none") return;
-  $("#quiz").html("Today's mistake");
-  $("#opt").html("");
+    if ($("#start").val() == "Submit") return;
+    $("#quiz").html("Today's mistake");
+    $("#opt").html("");
 
-  var misslist = [[], [], [], []];
-  var res_txt = "";
-  for(var i=0; i<cnt_q; i++){
-    var mislen = (missrec[i]) ? missrec[i] :0;
-    misslist[mislen].push(qs_list_subset[i][0]);
-    if(mislen > 0)
-      res_txt += stars[missrec[i]-1] + qs_list_subset[i][1]
-        + ":" + qs_list_subset[i][2] + "\n";
-  }
-  if(missrec.length)
-    $("#result").html("<textarea>" + res_txt + "</textarea>");
-  else if(cnt_q >= conf_q)
-    $("#result").html("Congraturation for perfect clear!");
-  else
-    $("#result").html("(No mistakes)");
+    let misslist = [[], [], [], []];
+    let res_txt = "";
+    for (let i = 0; i < Q.count; i++) {
+        let mislen = (Q.missrec[i]) ? Q.missrec[i] :0;
+        misslist[mislen].push(Q.qlist[i][0]);
+        if (mislen > 0)
+            res_txt += stars[Q.missrec[i]-1] + Q.qlist[i][1]
+            + ":" + Q.qlist[i][2] + "\n";
+    }
+    if (Q.missrec.length)
+        $("#result").html("<textarea>" + res_txt + "</textarea>");
+    else if (Q.count >= Q.conf)
+        $("#result").html("Congraturation for perfect clear!");
+    else
+        $("#result").html("(No mistakes)");
 
     misslist.forEach((qids, i) => {
         qids.forEach(qid => {
-            var idx = scores.findIndex(score => score[0] == qid);
-            scores[idx][1] = (scores[idx][1] + i.toString()).slice(-8);
+            let idx = Q.scores.findIndex(score => score[0] == qid);
+            if (idx < 0) {
+                idx = Q.scores.length;
+                Q.scores.push([qid, ""]);
+            }
+            Q.scores[idx][1] = (Q.scores[idx][1] + i.toString()).slice(-8);
         });
     });
-    $("#submit_button").html(
+    $("#result").append(
         "<textarea>" + JSON.stringify(misslist) + "</textarea>"
-            + "<textarea>" +
-            JSON.stringify(scores) + "</textarea>"
+            + "<textarea id=qscores>" +
+            JSON.stringify(Q.scores) + "</textarea>"
     );
-
+    localStorage["score"] = JSON.stringify(Q.scores);
     
+    $("#result textarea").css("height","200px").prop("disabled", true);
+    $("#qscores").prop("disabled", false);
+    
+    $("#start").val("Save").unbind().click(function() {
+        localStorage["score"] = $("#qscores").val();
+    }).show();
+
 }
 
-/////////////// •Ø•®•ÍºË∆¿
+/////////////// „ÇØ„Ç®„É™ÂèñÂæó
 function getRequest(){
-  if(location.search.length > 1){
-    var get = new Object();
-    var ret = location.search.substr(1).split("&");
-    for(var i=0; i<ret.length; i++){
-      if(ret[i].indexOf("user=")==0) return ret[i].split("=").pop();
-    }
-  }
-  return false;
-}
-/////////////// •§•Ÿ•Û•»•œ•Û•…•È
-$(document).ready( function() {
-  var all_hitags = "";
-  $("#start").click( function(){  state_machine(); } );
-  $("#fin").click( go_fin );
-  init_config(conf_q);
+    if (location.search.length < 2) return;
+    let ret = location.search.slice(1).split("&")
+        .find(q => q.indexOf("user=") == 0);
+    if (!ret) return;
+};
+/////////////// „Ç§„Éô„É≥„Éà„Éè„É≥„Éâ„É©
+$(function() {
+    $("#fullbox").hide();
+    $("#dump").click(function() {
+        $("#fullbox, #game").toggle();
+    });
+    $("#start").click(function(){ state_machine(); });
+    $("#fin").click(go_fin);
+    init_config(Q.conf);
 });
