@@ -5,7 +5,6 @@
 <meta http-equiv="Content-Style-Type" content="text/css" />
 <meta name="viewport" content="width=device-width, initial-scale=0.5">
 <title>ChineseWordcard</title>
-<script src="//ajax.googleapis.com/ajax/libs/jquery/2.2.4/jquery.min.js"></script>
 <script type="text/javascript" src="jZhong_v12.js"></script>
 <script type="text/javascript" src="pn_list.js"></script>
 <style type="text/css">
@@ -77,7 +76,7 @@ text-align:center;
 .qid.r2 {
   background-color: #f00;
 }
-  #fin, #dump {
+  #exit, #dump {
 border: 1px solid #448;
 border-radius: 15px;
   background-color: #eee;
@@ -106,7 +105,13 @@ color:blue;
 #tf {
   color:blue; position:absolute; top:25px;font-weight:bold; font-size:300%;
 }
-
+label.checked {
+  color: red;
+  font-weight: bold;
+}
+  .hidden {
+    display:none;
+  }
 </style>
 
 <body>
@@ -123,13 +128,16 @@ color:blue;
       </div>
       <div id="result">(Now loading)</div>
     </div>
-    <hr>
-    <div style="text-align:right" id="back">
-      <span id="dump">Dump</span>
-      <span id="fin">Exit</span>
-    </div>
   </div>
 </div>
-<div id="fullbox">All cards are shown as follows: <div class="cardlist"></div></div>
-<hr>
+<hr />
+<div style="text-align:right" id="back">
+  <span id="dump">Dump</span>
+  <span id="exit">Exit</span>
+</div>
+<div id="fullbox" class="hidden">
+  All cards are shown as follows: <div class="cardlist"></div>
+</div>
+<hr />
+
 </body>

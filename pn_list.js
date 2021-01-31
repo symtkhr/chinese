@@ -1,4 +1,4 @@
-var pn_list = {
+const pn_list = {
   "#" : ["a", "ai", "an", "ang", "ao", "e", "en", "er", "ou", "wa", "wai", "wan", "wang", "wei", "wen", "weng", "wo", "wu"],
   "y" : ["a", "an", "ang", "ao", "e", "i", "in", "ing", "ong", "ou", "u", "uan", "ue", "un"],
   
@@ -30,8 +30,4 @@ var pn_list = {
   "zh": ["a", "ai", "an", "ang", "ao", "e", "ei", "en", "eng", "i", "ong", "ou", "u", "ua", "uai", "uan", "uang", "ui", "un", "uo"]
 };
 
-var similarity_nest = [ "m-b-p-h-f", "b-h", "g-k-q-ch", "d-t", "n-r-zh-j-z-c-s-sh-x", "j-r-z", "zh-sh-z-s-x", "#-y" ];
-
-var pn_heads = [];
-for (var pnKey in pn_list) pn_heads.push(pnKey);
-//alert(pn_heads);
+const similarity_nest = [ "m-b-p-h-f", "b-h", "g-k-q-ch", "d-t", "n-r-zh-j-z-c-s-sh-x", "j-r-z", "zh-sh-z-s-x", "#-y" ];
